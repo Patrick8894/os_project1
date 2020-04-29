@@ -7,6 +7,7 @@
 #include<string.h>
 #include<sys/types.h>
 #include<sys/syscall.h>
+#include<signal.h>
 #include<sys/wait.h>
 
 typedef struct Process{
@@ -19,7 +20,6 @@ int scheduler(process *proc, int procnum, int policy);
 int main(int argc, char* argv[])
 {
 	char policyname[128];
-	int policynum;
 	int procnum;
 	int policy;
 	scanf("%s", policyname);
@@ -42,10 +42,12 @@ int main(int argc, char* argv[])
 	scheduler(proc, procnum, policy);
 	exit(0);
 }
-void unit_time(){
-	volatile unsigned long long i;
-	for(i = 0; i < 1000000UL; i++);
-}
+#define unit_time()				\
+{						\
+	volatile unsigned long i;		\
+	for (i = 0; i < 1000000UL; i++);	\
+}						\
+	
 int cmp(const void *a, const void *b){
 	if (((process *)a) -> rtime > ((process*)b) -> rtime);
 		return 1;
@@ -89,7 +91,7 @@ int p_wakeup(int pid){
 	return ret;
 }
 int nextproc(process *proc, int procnum, int policy){
-	if(now != -1 && (policy == 3 || policy == 1))
+	if(now != -1 && (policy == 1 || policy == 3))
 		return now;
 	int choose = -1;
 	if(policy == 3 || policy == 4){
@@ -111,9 +113,10 @@ int nextproc(process *proc, int procnum, int policy){
 	else if(policy == 2){
 		if(now == -1){
 			for(int i = 0; i < procnum; i++){
-				if(proc[i].pid != -1 && proc[i].etime > 0)
+				if(proc[i].pid != -1 && proc[i].etime > 0){
 					choose = i;
-				break;
+					break;
+				}
 			}
 		}
 		else if((ntime - last_t) % 500 == 0){
@@ -160,6 +163,7 @@ int scheduler(process *proc, int procnum, int policy){
 		unit_time();
 		if(now != -1)
 			proc[now].etime--;
+		ntime++;
 	}
 	return 0;
 }
