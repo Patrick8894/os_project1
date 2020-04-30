@@ -9,6 +9,7 @@
 #include<sys/syscall.h>
 #include<signal.h>
 #include<sys/wait.h>
+#include<time.h>
 
 typedef struct Process{
 	char name[30];
@@ -39,6 +40,7 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "invalid input");
 		exit(0);
 	}
+//	printf("scan finished\n");
 	scheduler(proc, procnum, policy);
 	exit(0);
 }
@@ -63,17 +65,35 @@ int assign_cpu(int pid, int cpu){
 	return 0;
 }
 int procexec(process proc){
-	int pid;
-	if(pid = fork() == 0){
-		unsigned long  start_sec, start_nsec, end_sec, end_nsec;
-		syscall(333, &start_sec, &start_nsec);
-		for(int i = 0; i < proc.etime; i++)
+	struct timespec tstart, tend;
+	syscall(333, &tstart);
+	int pid = fork();
+	if(pid == 0){
+		for(int i = 0; i < proc.etime; i++){
 			unit_time();
-		syscall(333, &end_sec, &end_nsec);
+//			if(i % 100 == 0)
+//				printf("process %s %d unit time\n", proc.name, i);
+		}
+		syscall(333, &tend);
 		char dmesg[300];
-		sprintf(dmesg, "[project1] %d %lu.%09lu %lu.%09lu\n", getpid(), start_sec, start_nsec, end_sec, end_nsec);
-		syscall(334, dmesg);
+//		start_sec = tstart.tv_sec;
+//		start_nsec = tstart.tv_nsec;
+//		end_sec = tend.tv_sec;
+//		end_nsec = tend.tv_nsec;
+//		sprintf(dmesg, "[project1] %d %lu.%09lu %lu.%09lu\n", getpid(), start_sec, start_nsec, end_sec, end_nsec);
+		syscall(334, getpid(), tstart, tend);
 		exit(0);
+	}
+	assign_cpu(pid, 1);
+	return pid;
+}
+int create_mid(){
+	int pid = fork();
+	if(pid == 0){
+		struct sched_param param;
+		param.sched_priority = 50;
+		int ret = sched_setscheduler(pid, SCHED_FIFO, &param);
+		while(1);
 	}
 	assign_cpu(pid, 1);
 	return pid;
@@ -86,8 +106,8 @@ int block_proc(int pid){
 }
 int p_wakeup(int pid){
 	struct sched_param param;
-	param.sched_priority = 0;
-	int ret = sched_setscheduler(pid, SCHED_OTHER, &param);
+	param.sched_priority = 99;
+	int ret = sched_setscheduler(pid, SCHED_FIFO, &param);
 	return ret;
 }
 int nextproc(process *proc, int procnum, int policy){
@@ -134,6 +154,7 @@ int scheduler(process *proc, int procnum, int policy){
 	for(int i = 0; i < procnum; i++)
 		proc[i].pid = -1;
 	assign_cpu(getpid(), 0);
+	int mid_pid = create_mid();
 	p_wakeup(getpid());
 	ntime = 0, now = -1, finished = 0;
 	while(1){
@@ -152,6 +173,7 @@ int scheduler(process *proc, int procnum, int policy){
 			}
 		}
 		int next = nextproc(proc, procnum, policy);
+//		printf("next = %d\n", next);
 		if(next != -1){
 			if(now != next){
 				p_wakeup(proc[next].pid);
@@ -165,5 +187,6 @@ int scheduler(process *proc, int procnum, int policy){
 			proc[now].etime--;
 		ntime++;
 	}
+	kill(mid_pid, SIGKILL);
 	return 0;
 }
