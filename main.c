@@ -66,13 +66,13 @@ int procexec(process proc){
 	int pid;
 	if(pid = fork() == 0){
 		unsigned long  start_sec, start_nsec, end_sec, end_nsec;
-		syscall(314, &start_sec, &start_nsec);
+		syscall(333, &start_sec, &start_nsec);
 		for(int i = 0; i < proc.etime; i++)
 			unit_time();
-		syscall(314, &end_sec, &end_nsec);
+		syscall(333, &end_sec, &end_nsec);
 		char dmesg[300];
 		sprintf(dmesg, "[project1] %d %lu.%09lu %lu.%09lu\n", getpid(), start_sec, start_nsec, end_sec, end_nsec);
-		syscall(315, dmesg);
+		syscall(334, dmesg);
 		exit(0);
 	}
 	assign_cpu(pid, 1);
